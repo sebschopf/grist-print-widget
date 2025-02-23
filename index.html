@@ -74,21 +74,15 @@
         }
 
         // Initialisation de Grist
-        try {
-            updateDebug('Initialisation de la connexion Grist...');
-            grist.ready({requiredAccess: 'read table'})
-            .then(() => {
-                updateDebug('Connexion Grist établie avec succès');
-            })
-            .catch(err => {
-                updateDebug('Erreur lors de la connexion: ' + err.message);
-            });
-        } catch(err) {
-            updateDebug('Erreur critique: ' + err.message);
-        }
+        updateDebug('Initialisation de la connexion Grist...');
+        grist.ready({
+            requiredAccess: 'read table',
+            columns: [] // Pas de colonnes spécifiques requises
+        });
+        updateDebug('Connexion Grist initialisée');
 
         // Écoute des changements de record
-        grist.onRecord(function(record) {
+        grist.onRecord(async function(record) {
             updateDebug('Nouveau record reçu: ' + JSON.stringify(record, null, 2));
 
             // Afficher les informations de contact
@@ -122,41 +116,50 @@
 
             // Récupérer et afficher les commerces assignés
             if (record.id) {
-                updateDebug('Récupération des commerces pour ID: ' + record.id);
-                grist.docApi.fetchTable('T2024_commercants')
-                .then(table => {
-                    updateDebug('Table des commerces récupérée: ' + table.length + ' entrées');
-                    const commerces = table.filter(t => 
-                        t.Distributeur && t.Distributeur.includes(record.id)
-                    );
-                    updateDebug('Commerces filtrés: ' + commerces.length + ' trouvés');
+                try {
+                    updateDebug('Récupération des commerces pour ID: ' + record.id);
                     
-                    const businessesDiv = document.getElementById('businesses');
-                    businessesDiv.innerHTML = `
-                        <h2>Commerces assignés</h2>
-                        <table>
-                            <thead>
-                                <tr>
-                                    <th>Nom du commerce</th>
-                                    <th>Adresse complète</th>
-                                    <th>Nombre de tirelires</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                ${commerces.map(commerce => `
+                    // Utilisation de la méthode getTable au lieu de fetchTable
+                    const tableData = await grist.docApi.getTable('T2024_commercants');
+                    updateDebug('Table des commerces récupérée');
+                    
+                    if (tableData && Array.isArray(tableData.records)) {
+                        const commerces = tableData.records.filter(t => 
+                            t.Distributeur && Array.isArray(t.Distributeur) && t.Distributeur.includes(record.id)
+                        );
+                        
+                        updateDebug('Commerces filtrés: ' + commerces.length + ' trouvés');
+                        
+                        const businessesDiv = document.getElementById('businesses');
+                        businessesDiv.innerHTML = `
+                            <h2>Commerces assignés</h2>
+                            <table>
+                                <thead>
                                     <tr>
-                                        <td>${commerce.NOM || ''}</td>
-                                        <td>${commerce.Rue || ''} ${commerce.Numero || ''}, ${commerce.Code_Postal || ''} ${commerce.Commune || ''}</td>
-                                        <td>${commerce.Tirelires || ''}</td>
+                                        <th>Nom du commerce</th>
+                                        <th>Adresse complète</th>
+                                        <th>Nombre de tirelires</th>
                                     </tr>
-                                `).join('')}
-                            </tbody>
-                        </table>
-                    `;
-                })
-                .catch(err => {
+                                </thead>
+                                <tbody>
+                                    ${commerces.map(commerce => `
+                                        <tr>
+                                            <td>${commerce.NOM || ''}</td>
+                                            <td>${commerce.Rue || ''} ${commerce.Numero || ''}, ${commerce.Code_Postal || ''} ${commerce.Commune || ''}</td>
+                                            <td>${commerce.Tirelires || ''}</td>
+                                        </tr>
+                                    `).join('')}
+                                </tbody>
+                            </table>
+                        `;
+                    } else {
+                        updateDebug('La table des commerces est vide ou mal formatée');
+                        document.getElementById('businesses').innerHTML = '<p>Aucun commerce assigné</p>';
+                    }
+                } catch (err) {
                     updateDebug('Erreur lors de la récupération des commerces: ' + err.message);
-                });
+                    document.getElementById('businesses').innerHTML = '<p>Erreur lors de la récupération des commerces</p>';
+                }
             }
         });
     </script>
