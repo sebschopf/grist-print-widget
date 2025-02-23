@@ -1,23 +1,127 @@
 <!DOCTYPE html>
 <html lang="fr">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Widget d'impression Grist</title>
-    <!-- Chargement de Vue.js -->
-    <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
-    <!-- Chargement de l'API Grist -->
+    <meta charset="utf-8">
+    <title>Fiche Distributeur</title>
     <script src="https://docs.getgrist.com/grist-plugin-api.js"></script>
-    <!-- Tailwind CSS -->
-    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 20px;
+        }
+        .print-container {
+            max-width: 210mm;
+            margin: 0 auto;
+            background: white;
+            padding: 20mm;
+        }
+        .field-group {
+            margin-bottom: 1rem;
+        }
+        .label {
+            font-weight: bold;
+            margin-bottom: 0.25rem;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 2rem;
+        }
+        th, td {
+            border: 1px solid #ddd;
+            padding: 8px;
+            text-align: left;
+        }
+        th {
+            background-color: #f5f5f5;
+        }
+        @media print {
+            body {
+                padding: 0;
+            }
+            .print-container {
+                padding: 0;
+            }
+            .no-print {
+                display: none;
+            }
+        }
+    </style>
 </head>
 <body>
-    <div id="app"></div>
-    <script type="module">
-        import { createApp } from 'https://unpkg.com/vue@3/dist/vue.esm-browser.js'
-        import PrintWidget from './print-widget.vue'
+    <div class="print-container">
+        <h1>Fiche Distributeur</h1>
+        <div id="contact-info"></div>
+        <div id="businesses"></div>
+        <button onclick="window.print()" class="no-print">Imprimer</button>
+    </div>
+
+    <script>
+        grist.ready({requiredAccess: 'read table'});
         
-        createApp(PrintWidget).mount('#app')
+        grist.onRecord(function(record) {
+            // Afficher les informations de contact
+            const contactInfo = document.getElementById('contact-info');
+            contactInfo.innerHTML = `
+                <div class="field-group">
+                    <div class="label">Forme de politesse:</div>
+                    <div>${record.Forme_politesse || ''}</div>
+                </div>
+                <div class="field-group">
+                    <div class="label">Nom:</div>
+                    <div>${record.NOM || ''} ${record.Prenom || ''}</div>
+                </div>
+                <div class="field-group">
+                    <div class="label">Adresse:</div>
+                    <div>${record.Rue || ''} ${record.Numero || ''}, ${record.Code_Postal || ''} ${record.Localite || ''}</div>
+                </div>
+                <div class="field-group">
+                    <div class="label">Téléphone fixe:</div>
+                    <div>${record.Tel_fixe || ''}</div>
+                </div>
+                <div class="field-group">
+                    <div class="label">Téléphone portable:</div>
+                    <div>${record.Tel_portable || ''}</div>
+                </div>
+                <div class="field-group">
+                    <div class="label">Email:</div>
+                    <div>${record.Adresse_electronique || ''}</div>
+                </div>
+            `;
+
+            // Récupérer et afficher les commerces assignés
+            if (record.id) {
+                grist.docApi.fetchTable('T2024_commercants').then(table => {
+                    const commerces = table.filter(t => 
+                        t.Distributeur && t.Distributeur.includes(record.id)
+                    );
+                    
+                    const businessesDiv = document.getElementById('businesses');
+                    businessesDiv.innerHTML = `
+                        <h2>Commerces assignés</h2>
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Nom du commerce</th>
+                                    <th>Adresse complète</th>
+                                    <th>Nombre de tirelires</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                ${commerces.map(commerce => `
+                                    <tr>
+                                        <td>${commerce.NOM || ''}</td>
+                                        <td>${commerce.Rue || ''} ${commerce.Numero || ''}, ${commerce.Code_Postal || ''} ${commerce.Commune || ''}</td>
+                                        <td>${commerce.Tirelires || ''}</td>
+                                    </tr>
+                                `).join('')}
+                            </tbody>
+                        </table>
+                    `;
+                });
+            }
+        });
     </script>
 </body>
 </html>
