@@ -36,6 +36,13 @@
         th {
             background-color: #f5f5f5;
         }
+        .debug-info {
+            background: #f0f0f0;
+            padding: 10px;
+            margin: 10px 0;
+            font-family: monospace;
+            white-space: pre-wrap;
+        }
         @media print {
             body {
                 padding: 0;
@@ -43,7 +50,7 @@
             .print-container {
                 padding: 0;
             }
-            .no-print {
+            .no-print, .debug-info {
                 display: none;
             }
         }
@@ -52,15 +59,38 @@
 <body>
     <div class="print-container">
         <h1>Fiche Distributeur</h1>
+        <div id="debug" class="debug-info no-print">En attente de connexion à Grist...</div>
         <div id="contact-info"></div>
         <div id="businesses"></div>
         <button onclick="window.print()" class="no-print">Imprimer</button>
     </div>
 
     <script>
-        grist.ready({requiredAccess: 'read table'});
-        
+        const debugDiv = document.getElementById('debug');
+
+        function updateDebug(message) {
+            debugDiv.textContent += '\n' + message;
+            console.log(message);
+        }
+
+        // Initialisation de Grist
+        try {
+            updateDebug('Initialisation de la connexion Grist...');
+            grist.ready({requiredAccess: 'read table'})
+            .then(() => {
+                updateDebug('Connexion Grist établie avec succès');
+            })
+            .catch(err => {
+                updateDebug('Erreur lors de la connexion: ' + err.message);
+            });
+        } catch(err) {
+            updateDebug('Erreur critique: ' + err.message);
+        }
+
+        // Écoute des changements de record
         grist.onRecord(function(record) {
+            updateDebug('Nouveau record reçu: ' + JSON.stringify(record, null, 2));
+
             // Afficher les informations de contact
             const contactInfo = document.getElementById('contact-info');
             contactInfo.innerHTML = `
@@ -92,10 +122,14 @@
 
             // Récupérer et afficher les commerces assignés
             if (record.id) {
-                grist.docApi.fetchTable('T2024_commercants').then(table => {
+                updateDebug('Récupération des commerces pour ID: ' + record.id);
+                grist.docApi.fetchTable('T2024_commercants')
+                .then(table => {
+                    updateDebug('Table des commerces récupérée: ' + table.length + ' entrées');
                     const commerces = table.filter(t => 
                         t.Distributeur && t.Distributeur.includes(record.id)
                     );
+                    updateDebug('Commerces filtrés: ' + commerces.length + ' trouvés');
                     
                     const businessesDiv = document.getElementById('businesses');
                     businessesDiv.innerHTML = `
@@ -119,6 +153,9 @@
                             </tbody>
                         </table>
                     `;
+                })
+                .catch(err => {
+                    updateDebug('Erreur lors de la récupération des commerces: ' + err.message);
                 });
             }
         });
