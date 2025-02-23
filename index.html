@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Widget d'impression Grist</title>
+    <!-- Chargement de Vue.js -->
+    <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+    <!-- Chargement de l'API Grist -->
+    <script src="https://docs.getgrist.com/grist-plugin-api.js"></script>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body>
+    <div id="app"></div>
+    <script type="module">
+        import { createApp } from 'https://unpkg.com/vue@3/dist/vue.esm-browser.js'
+        import PrintWidget from './print-widget.vue'
+        
+        createApp(PrintWidget).mount('#app')
+    </script>
+</body>
+</html>
